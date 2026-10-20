@@ -1,0 +1,486 @@
+/* nsite-clay base stylesheet.
+ *
+ * Everything the engine needs, in one file every template links. A template
+ * sets the variables below and styles its own content; nothing here should
+ * need editing to change how a page looks, and changing the engine should not
+ * mean touching ten template files.
+ *
+ * Templates override the variables, not the rules. */
+
+:root {
+  /* The only things a template is expected to set. */
+  --nc-ink: #16130f;            /* body text */
+  --nc-ink-dim: #6b6257;        /* secondary text */
+  --nc-bg: #ffffff;             /* page background */
+  --nc-panel: #f6f4f0;          /* chrome and cards */
+  --nc-edge: #ddd5c8;           /* borders */
+  --nc-accent: #7b3f00;         /* focus rings, primary actions */
+  --nc-accent-ink: #ffffff;     /* text on the accent */
+  --nc-ok: #2f6b3a;
+  --nc-bad: #9b2c2c;
+  --nc-radius: 10px;
+  --nc-radius-sm: 7px;          /* buttons and small controls */
+  --nc-shadow: 0 12px 34px -18px rgba(0, 0, 0, .55);   /* set to none for a flat design */
+  --nc-chrome-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --nc-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ---- editing affordances ------------------------------------------------ */
+
+[editable]:focus {
+  outline: 2px solid var(--nc-accent);
+  outline-offset: 5px;
+  border-radius: 3px;
+}
+html[nc\:editable="true"] [editable]:hover:not(:focus) {
+  box-shadow: 0 0 0 1px var(--nc-edge);
+  border-radius: 3px;
+}
+
+/* ---- the edit gate ------------------------------------------------------
+ * With nc:edit-gate="hash" on the html element, the runtime sets nc:editing to false
+ * until the URL ends in #edit. Anything marked nc-ui disappears with it, so a
+ * reader gets the page and nothing else. Templates put their toolbar, their
+ * sign-in panel and any other control inside an element carrying nc-ui. */
+
+html[nc\:editing="false"] .nc-ui-chrome { display: none !important; }
+
+/* Before the runtime boots, and for a reader with scripting off, nothing has
+ * set nc:editing at all. Without this the toolbar renders as live furniture on
+ * a static page. */
+html:not([nc\:editing]) .nc-ui-chrome { display: none !important; }
+
+/* A template's own button rules routinely outrank the user-agent [hidden] rule,
+ * which ships JavaScript-only controls to readers as visible dead buttons. */
+[hidden] { display: none !important; }
+
+/* ---- the standard toolbar ----------------------------------------------- */
+
+.nc-bar {
+  position: fixed; right: 1rem; bottom: 1rem; z-index: 60;
+  display: flex; gap: .5rem; align-items: center;
+  padding: .5rem .6rem; border-radius: var(--nc-radius);
+  background: var(--nc-panel); border: 1px solid var(--nc-edge); color: var(--nc-ink);
+  font: .82rem/1.3 var(--nc-chrome-font);
+  box-shadow: var(--nc-shadow);
+}
+@media (max-width: 30rem) {
+  /* Pinned to one corner, a bar wider than the screen runs off the other edge
+     instead of scrolling, and the control at that end cannot be reached. Let it
+     span the width and wrap. */
+  .nc-bar { left: .5rem; right: .5rem; bottom: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+}
+.nc-bar button {
+  font: inherit; cursor: pointer; white-space: nowrap;
+  padding: .38rem .75rem; border-radius: var(--nc-radius-sm);
+  border: 1px solid var(--nc-edge); background: var(--nc-bg); color: var(--nc-ink);
+}
+.nc-bar button:hover { border-color: var(--nc-accent); }
+.nc-bar button.nc-primary {
+  background: var(--nc-accent); border-color: transparent; color: var(--nc-accent-ink); font-weight: 600;
+}
+.nc-bar .nc-who { color: var(--nc-ink-dim); font: .78rem var(--nc-mono); }
+.nc-bar .nc-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--nc-ink-dim); flex: 0 0 auto; }
+html[nc\:status="saving"] .nc-bar .nc-dot { background: var(--nc-accent); animation: nc-pulse 1s infinite; }
+html[nc\:status="saved"]  .nc-bar .nc-dot { background: var(--nc-ok); }
+html[nc\:status="error"]  .nc-bar .nc-dot { background: var(--nc-bad); }
+@keyframes nc-pulse { 50% { opacity: .3; } }
+
+/* The content form's button, on a page with no nc:cms rules for it to draw,
+   has nothing to open. The runtime stamps nc:cms-rules on the html element when the page
+   carries a rules block, so a toolbar can hold the button unconditionally. */
+html:not([nc\:cms-rules]) [data-nc-cms] { display: none !important; }
+
+/* Owner-only controls. The runtime stamps nc:owner-here on the html element. */
+.nc-owner-only { display: none; }
+html[nc\:owner-here="true"] .nc-owner-only { display: inline-flex; }
+html[nc\:owner-here="true"] .nc-guest-only { display: none; }
+
+/* A hint for an owner who is signed in but has not added #edit yet. Hidden from
+ * everyone else, including readers, so it is not furniture on a public page. */
+.nc-edit-hint { display: none; position: fixed; right: 1rem; bottom: 1rem; z-index: 59;
+  font: .75rem var(--nc-mono); color: var(--nc-ink-dim); opacity: .55; }
+html[nc\:owner-here="true"][nc\:editing="false"] .nc-edit-hint { display: block; }
+
+/* ---- contextual controls -------------------------------------------------
+ * The gear pattern: controls that live on the object they act on and appear
+ * only for an owner who is editing.
+ *
+ * A gear is part of the app, so it stays in the saved file and these rules keep
+ * it away from readers. Do not put clay="no-save" on one: that strips it from
+ * the save, so the pattern would work exactly once and the published page would
+ * have no controls. clay="no-save" is for markup that must never be written at
+ * all, such as a composer holding a half-typed line.
+ *
+ * nc-gear is visibility only. nc-gear-row adds the usual layout, so a control
+ * that is not a row of small buttons can lay itself out without having to
+ * out-specify the visibility rule. */
+
+.nc-gear { display: none !important; }
+html[nc\:owner-here="true"][nc\:editing="true"] .nc-gear { display: revert !important; }
+html[nc\:owner-here="true"][nc\:editing="true"] .nc-gear-row {
+  display: flex !important; flex-wrap: wrap; gap: .25rem;
+}
+.nc-gear button {
+  font: inherit; font-size: .78rem; line-height: 1; cursor: pointer;
+  padding: .3rem .5rem; border-radius: var(--nc-radius-sm);
+  border: 1px solid var(--nc-edge); background: var(--nc-panel); color: var(--nc-ink);
+}
+.nc-gear button:hover { border-color: var(--nc-accent); }
+
+/* nc-gear-rail is the strip of controls the runtime draws on a block, in the
+ * shape a page can use for the repeating shapes it builds itself: the events in
+ * a list, the cards in a grid, the people on a team page. A page that invents
+ * its own row of worded buttons for each of those teaches its owner a different
+ * vocabulary per kind of thing; one strip, in one place, with the same icons, is
+ * learnt once. Buttons carry a title and an aria-label, because an icon nobody
+ * can name is not a control.
+ *
+ * It sits at the end of the item and hard against its right edge, and it takes
+ * its own room rather than floating over the corner the way the block rail does.
+ * A block is big and mostly empty at the top; an item is a card three lines
+ * long, where an overlay covers the words it is meant to help edit, and where
+ * whichever item ends up flush with the block's own corner would wear two strips
+ * of buttons on the same pixels. Room costs a line of height in edit mode and
+ * nothing at all to a reader. */
+html[nc\:owner-here="true"][nc\:editing="true"] .nc-gear-rail { display: flex !important; }
+.nc-gear-rail {
+  width: fit-content; margin: .55rem 0 0 auto; padding: 3px;
+  gap: 2px; list-style: none;
+  background: var(--nc-panel); border: 1px solid var(--nc-edge);
+  border-radius: var(--nc-radius-sm);
+  box-shadow: var(--nc-shadow);
+  opacity: .4; transition: opacity .15s ease;
+}
+:hover > .nc-gear-rail, .nc-gear-rail:focus-within { opacity: 1; }
+.nc-gear-rail button {
+  font: inherit; font-size: .8rem; line-height: 1; cursor: pointer;
+  padding: .3rem .45rem; border: 0; border-radius: var(--nc-radius-sm);
+  background: transparent; color: var(--nc-ink);
+}
+.nc-gear-rail button:hover { background: var(--nc-bg); border-color: transparent; }
+
+/* ---- media inserted by the toolbar -------------------------------------- */
+
+.nc-figure { margin: 1.4rem 0; }
+.nc-figure img, .nc-figure video { width: 100%; height: auto; display: block; border-radius: var(--nc-radius); }
+.nc-figure figcaption { font-size: .85rem; color: var(--nc-ink-dim); margin-top: .45rem; }
+.nc-embed .nc-embed-link { position: relative; display: block; }
+.nc-embed-play {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 3rem; color: #fff; text-shadow: 0 2px 20px rgba(0, 0, 0, .75);
+}
+
+/* ---- Nostr feeds --------------------------------------------------------
+ * feed.js injects a minimal fallback; these override it so a feed inherits the
+ * template rather than looking bolted on. */
+
+.nc-feed { display: grid; gap: 1rem; }
+.nc-feed-grid { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); align-items: start; }
+.nc-item {
+  border: 1px solid var(--nc-edge); border-radius: var(--nc-radius);
+  padding: .9rem 1rem; background: var(--nc-panel);
+}
+/* Clipping belongs to designs where the item is a box, not to every one. */
+.nc-feed-cards .nc-item { overflow: hidden; }
+.nc-by { display: flex; align-items: center; gap: .55rem; font-size: .82rem; margin-bottom: .5rem; opacity: .75; }
+.nc-by a { text-decoration: none; color: inherit; }
+.nc-by a:hover { text-decoration: underline; }
+.nc-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+/* Opt in: a card wants the date pushed right, a plain log line wants it to
+ * follow the name. */
+.nc-feed-spread .nc-by .nc-when { margin-left: auto; }
+/* A kind-0 display name is free text and is sometimes a whole sentence, which
+ * shoves everything after it out of the line. Every template that renders a
+ * byline compactly would otherwise solve this again. */
+.nc-name { font-weight: 500; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-title { font-size: 1.05rem; margin: .2rem 0 .35rem; }
+.nc-title a { text-decoration: none; color: inherit; }
+.nc-summary { margin: 0; font-size: .93rem; color: var(--nc-ink-dim); overflow-wrap: anywhere; }
+/* A note is the content on a page built around notes, not a caption under a
+ * title, so it gets the body colour rather than the dim one. */
+.nc-text { margin: 0; font-size: .93rem; color: var(--nc-ink); overflow-wrap: anywhere; }
+.nc-text p { margin: 0 0 .5rem; }
+.nc-cover { width: 100%; height: 9rem; object-fit: cover; border-radius: 8px; margin-bottom: .5rem; }
+.nc-pics { display: grid; gap: .35rem; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); margin-bottom: .5rem; }
+.nc-pics img { width: 100%; border-radius: 8px; object-fit: cover; }
+.nc-tags { margin-top: .6rem; display: flex; gap: .4rem; flex-wrap: wrap; font-size: .75rem; opacity: .6; }
+.nc-feed-status { color: var(--nc-ink-dim); font-size: .9rem; }
+
+/* ---- site navigation -----------------------------------------------------
+ * Used by the project's own pages rather than by templates, but it lives here
+ * so the twelve translated pages do not each carry a copy. */
+
+.nc-nav {
+  display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap;
+  padding: 1.2rem 0; font: .88rem var(--nc-chrome-font);
+}
+.nc-nav a { color: var(--nc-ink-dim); text-decoration: none; }
+.nc-nav a:hover, .nc-nav a[aria-current="page"] { color: var(--nc-accent); }
+.nc-nav a[aria-current="page"] { font-weight: 600; }
+.nc-nav .nc-brand { display: flex; align-items: center; gap: .5rem; margin-right: auto;
+  color: var(--nc-ink); font-weight: 600; }
+.nc-nav .nc-brand img { width: 26px; height: 26px; }
+.nc-lang { display: flex; gap: .4rem; align-items: center; }
+.nc-lang a { font: .78rem var(--nc-mono); text-transform: uppercase; letter-spacing: .04em;
+  padding: .2rem .4rem; border-radius: var(--nc-radius-sm); }
+.nc-lang a[aria-current="page"] { background: var(--nc-panel); color: var(--nc-ink); }
+.nc-credit { color: var(--nc-ink-dim); font-size: .88rem; margin: .4rem 0 0; }
+@media (max-width: 34rem) {
+  .nc-nav { gap: .8rem; font-size: .82rem; }
+  .nc-nav .nc-brand { margin-right: 0; width: 100%; }
+}
+
+/* ---- form controls a template puts in its own page -----------------------
+ * A composer, a filter or a search box otherwise arrives with browser default
+ * chrome inside a themed page, and every template writes the same reset. */
+
+.nc-input {
+  font: inherit; color: inherit; width: 100%;
+  padding: .5rem .65rem; border-radius: var(--nc-radius-sm);
+  border: 1px solid var(--nc-edge); background: var(--nc-bg);
+}
+.nc-input:focus { outline: 2px solid var(--nc-accent); outline-offset: 1px; }
+.nc-input::placeholder { color: var(--nc-ink-dim); opacity: .8; }
+
+/* ---- respect the reader ------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    /* Without this an infinite animation restarts every frame instead of
+     * stopping, so a breathing glow flickers rather than settling, which is
+     * worse than the animation it was meant to remove. */
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  html { scroll-behavior: auto !important; }
+}
+
+/* ---- the CMS panel -------------------------------------------------------
+ * nc.cms.open() draws a form for the page from the nc:cms rules block. It is
+ * runtime chrome, so it is removed from the save and never reaches a reader.
+ * Every one of these class names can be restyled by a document.
+ *
+ * The reset is the same one the dialogs carry: a document's own element rules
+ * reach the panel, which is an <aside> full of forms and buttons, so its layout
+ * is stated here rather than inherited. Nothing may be added above it, because
+ * the rules that follow win their ties by coming after.
+ */
+.nc-cms * {
+  display: revert; position: static; float: none;
+  margin: revert; padding: revert;
+  width: revert; height: revert; max-width: none; max-height: none;
+}
+.nc-cms {
+  display: block; position: fixed; inset: 0 0 0 auto; width: min(23rem, 100%);
+  background: var(--nc-panel); color: var(--nc-ink);
+  border-left: 1px solid var(--nc-edge);
+  z-index: 2147483000; overflow-y: auto; padding: 1rem;
+  font: 14px/1.5 var(--nc-chrome-font);
+  box-shadow: -20px 0 60px -30px rgba(0, 0, 0, .8);
+}
+.nc-cms header { display: flex; justify-content: space-between; align-items: center;
+  gap: .5rem; margin-bottom: .5rem; }
+.nc-cms button {
+  font: inherit; padding: .3rem .6rem; border-radius: var(--nc-radius-sm, 8px);
+  border: 1px solid var(--nc-edge); background: var(--nc-bg);
+  color: inherit; cursor: pointer;
+}
+.nc-cms button:hover { border-color: var(--nc-accent); }
+.nc-cms input:not([type="checkbox"]), .nc-cms textarea, .nc-cms select, .nc-cms [role="textbox"] {
+  width: 100%; box-sizing: border-box; font: inherit; padding: .4rem .55rem;
+  border-radius: var(--nc-radius-sm); border: 1px solid var(--nc-edge);
+  background: var(--nc-bg); color: inherit;
+}
+.nc-cms input:focus-visible, .nc-cms textarea:focus-visible, .nc-cms select:focus-visible, .nc-cms [role="textbox"]:focus-visible {
+  outline: 2px solid var(--nc-accent); outline-offset: 1px;
+}
+.nc-cms-field { margin: 0 0 .75rem; }
+.nc-cms-label { display: block; font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .06em; opacity: .65; margin-bottom: .25rem; }
+.nc-cms-check { display: flex; align-items: center; gap: .5rem; }
+.nc-cms-check .nc-cms-label { margin: 0; text-transform: none; letter-spacing: 0; }
+.nc-cms-group { border: 1px solid var(--nc-edge); border-radius: var(--nc-radius);
+  padding: .7rem; margin: 0 0 .9rem; }
+.nc-cms-group legend { padding: 0 .35rem; font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .06em; opacity: .65; }
+.nc-cms-card { border: 1px solid var(--nc-edge); border-radius: var(--nc-radius-sm);
+  padding: .6rem; margin-bottom: .6rem; }
+.nc-cms-cardbar, .nc-cms-row { display: flex; gap: .3rem; margin-bottom: .5rem; }
+.nc-cms-row input { flex: 1; }
+.nc-cms-note { font-size: .82rem; opacity: .6; margin: 0 0 .8rem; }
+.nc-cms-pick { margin-top: .35rem; }
+
+/* An item kept only as the shape for "Add" is not content and is not shown. */
+[nc\:cms-template] { display: none !important; }
+
+@media (max-width: 620px) { .nc-cms { width: 100%; } }
+
+/* ---- the block composer ---------------------------------------------------
+ * A page marked [nc:blocks] is built out of blocks, and in edit mode the
+ * runtime draws a rail on each one and an insert point between them. All of it
+ * is nc:chrome, so none of it reaches the saved file. These rules only apply
+ * while an owner is editing; a reader's copy has no trace of them. */
+
+html[nc\:blocks-on="true"] [nc\:blocks] > *:not(.nc-blk-add) {
+  position: relative;
+  outline: 1px dashed var(--nc-edge);
+  outline-offset: 3px;
+}
+html[nc\:blocks-on="true"] [nc\:blocks] > *:not(.nc-blk-add):hover { outline-color: var(--nc-accent); }
+
+.nc-blk-rail {
+  position: absolute; top: .3rem; right: .3rem; z-index: 20;
+  display: flex; gap: 2px; margin: 0; padding: 3px; list-style: none;
+  background: var(--nc-panel); border: 1px solid var(--nc-edge);
+  border-radius: var(--nc-radius-sm);
+  box-shadow: var(--nc-shadow);
+  opacity: .35; transition: opacity .15s ease;
+}
+/* Out of the way until wanted: a rail at full strength on every block turns a
+ * page being edited into a page covered in buttons. */
+[nc\:blocks] > *:hover > .nc-blk-rail, .nc-blk-rail:focus-within { opacity: 1; }
+
+.nc-blk-rail button, .nc-blk-add button {
+  font: inherit; font-size: .8rem; line-height: 1; cursor: pointer;
+  padding: .3rem .45rem; border: 0; border-radius: var(--nc-radius-sm);
+  background: transparent; color: var(--nc-ink);
+}
+.nc-blk-rail button:hover, .nc-blk-add button:hover { background: var(--nc-bg); }
+
+/* An insert point is furniture, not content, so it must not take a cell of its
+ * own when the block area is a grid or a flex row. Without these two lines a
+ * two column layout put every "+" into a column and pushed the page sideways. */
+.nc-blk-add { display: flex; justify-content: center; padding: .15rem 0;
+  grid-column: 1 / -1; flex-basis: 100%; }
+.nc-blk-add button {
+  width: 100%; border: 1px dashed var(--nc-edge); color: var(--nc-ink-dim);
+  opacity: .5; transition: opacity .15s ease;
+}
+.nc-blk-add:hover button { opacity: 1; border-color: var(--nc-accent); color: var(--nc-ink); }
+
+/* The palette. Icons are text, so nothing is fetched to draw it. */
+.nc-blk-palette {
+  display: grid; gap: .5rem; margin: .3rem 0 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+}
+.nc-blk-choice {
+  display: grid; gap: .15rem; justify-items: start; align-content: start; text-align: left;
+  padding: .6rem .7rem; font: inherit; cursor: pointer;
+  color: var(--nc-ink); background: var(--nc-bg);
+  border: 1px solid var(--nc-edge); border-radius: var(--nc-radius-sm);
+}
+.nc-blk-choice:hover { border-color: var(--nc-accent); }
+.nc-blk-choice b { font-weight: 600; }
+.nc-blk-choice small { color: var(--nc-ink-dim); font-size: .76rem; }
+.nc-blk-icon { font-size: 1.3rem; line-height: 1; }
+
+/* The parts tree. The rail acts on a whole block; this is the way inside one,
+ * for the stray element that no block-level control can reach. */
+.nc-blk-parts { display: grid; gap: .1rem; margin: .2rem 0 .4rem; }
+.nc-blk-part {
+  display: flex; gap: .5rem; align-items: center;
+  padding: .25rem .35rem; border-radius: var(--nc-radius-sm);
+  font-size: .85rem; line-height: 1.35;
+}
+.nc-blk-part:hover { background: var(--nc-bg); }
+.nc-blk-part b { font-weight: 600; white-space: nowrap; }
+.nc-blk-part span {
+  color: var(--nc-ink-dim); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nc-blk-part-empty { font-style: italic; }
+.nc-blk-part-acts { display: flex; gap: 2px; margin-left: auto; flex: none; }
+.nc-ui .nc-blk-part-acts button {
+  font-size: .8rem; line-height: 1; padding: .3rem .45rem;
+  border: 0; background: transparent;
+}
+.nc-ui .nc-blk-part-acts button:hover { background: var(--nc-panel); border-color: transparent; }
+
+/* Hovering a row in that tree says which part of the page it means. The
+ * attribute is runtime state and comes off every save. */
+[nc\:highlight] { outline: 2px solid var(--nc-accent) !important; outline-offset: 2px; }
+
+/* ---- reading a post in the page -------------------------------------------
+ * A feed set to nc:open-with="reader" opens a post here instead of sending the
+ * reader to another site. It is nc:chrome, so a save made while it is open
+ * writes the page without it, and closing it is an overlay coming off rather
+ * than a navigation: the page underneath has not moved. */
+
+.nc-read {
+  position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: start center;
+  background: var(--nc-scrim, rgba(6, 4, 12, .62));
+  padding: clamp(.6rem, 4vw, 3rem) 1rem; overflow-y: auto;
+}
+.nc-read-card {
+  width: min(42rem, 100%); background: var(--nc-panel); color: var(--nc-ink);
+  border: 1px solid var(--nc-edge); border-radius: var(--nc-radius);
+  box-shadow: var(--nc-shadow); padding: 1.4rem 1.5rem 1.6rem;
+}
+.nc-read-head {
+  display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem;
+  font-size: .85rem; color: var(--nc-ink-dim);
+}
+.nc-read-by { color: inherit; font-weight: 600; text-decoration: none; }
+.nc-read-when { flex: 1; }
+.nc-read-x {
+  font: inherit; font-size: .85rem; cursor: pointer; padding: .35rem .8rem;
+  border-radius: var(--nc-radius-sm); border: 1px solid var(--nc-edge);
+  background: var(--nc-bg); color: var(--nc-ink);
+}
+.nc-read-x:hover { border-color: var(--nc-accent); }
+.nc-read-title { margin: 0 0 .8rem; font-size: 1.5rem; line-height: 1.25; letter-spacing: -.02em; }
+.nc-read-cover { display: block; width: 100%; height: auto; border-radius: var(--nc-radius-sm); margin-bottom: 1rem; }
+.nc-read-body { line-height: 1.7; overflow-wrap: anywhere; }
+.nc-read-body > :first-child { margin-top: 0; }
+.nc-read-body img { max-width: 100%; height: auto; border-radius: var(--nc-radius-sm); }
+.nc-read-body pre { overflow-x: auto; padding: .8rem 1rem; border-radius: var(--nc-radius-sm);
+  background: var(--nc-bg); border: 1px solid var(--nc-edge); font: .85rem/1.6 var(--nc-mono); }
+.nc-read-body blockquote { margin: 1rem 0; padding-left: 1rem;
+  border-left: 3px solid var(--nc-accent); color: var(--nc-ink-dim); }
+.nc-read-out { margin: 1.4rem 0 0; padding-top: 1rem; border-top: 1px solid var(--nc-edge);
+  font-size: .88rem; }
+
+/* The page behind does not scroll while a post is open. */
+html[nc\:reading="true"] body { overflow: hidden; }
+
+/* An image with no file behind it yet.
+ *
+ * A page built from a description asks for photographs its author has none of,
+ * so it ships <img alt="what belongs here"> and waits. With no src that box is
+ * nothing at all: no shape in the layout, nothing to see, and nothing anybody
+ * could guess is meant to become a picture. Drawn as a frame with its own
+ * description in it, the page reads as finished-but-for-the-photos, and the
+ * content form has a row called Picture next to it. */
+img:not([src]), img[src=""] {
+  display: grid; place-items: center; box-sizing: border-box;
+  width: 100%; min-height: 12rem; padding: 1.5rem; text-align: center;
+  color: var(--nc-ink-dim, #6b6478); font-size: .82rem; line-height: 1.5;
+  background:
+    repeating-linear-gradient(45deg, rgba(128,128,128,.06) 0 10px, transparent 10px 20px),
+    var(--nc-panel-2, rgba(128, 128, 128, .07));
+  border: 1px dashed var(--nc-edge, rgba(128, 128, 128, .45)); border-radius: var(--nc-radius-sm, 8px);
+}
+img[nc\:crop="16:9"]:not([src]) { aspect-ratio: 16 / 9; min-height: 0; }
+img[nc\:crop="4:3"]:not([src])  { aspect-ratio: 4 / 3;  min-height: 0; }
+img[nc\:crop="1:1"]:not([src])  { aspect-ratio: 1 / 1;  min-height: 0; }
+
+/* A picture says it can be clicked, while its owner is editing.
+ *
+ * Everything else on the page is changed by clicking it and typing. Without
+ * this, a picture is the one thing that looks like content and behaves like
+ * furniture, and somebody clicking an empty photo frame on their own page
+ * concludes the picture cannot be changed at all. */
+html[nc\:owner-here="true"][nc\:editing="true"] img { cursor: pointer; }
+html[nc\:owner-here="true"][nc\:editing="true"] img:hover {
+  outline: 2px solid var(--nc-accent, #7c5cff); outline-offset: 2px;
+}
+/* Not these: chrome is not content, a feed's pictures belong to whoever posted
+ * them, and the block library is a stencil rather than a section. */
+html[nc\:owner-here="true"][nc\:editing="true"] [nc\:chrome] img,
+html[nc\:owner-here="true"][nc\:editing="true"] .nc-ui-chrome img,
+html[nc\:owner-here="true"][nc\:editing="true"] [nc\:feed] img,
+html[nc\:owner-here="true"][nc\:editing="true"] [nc\:video] img {
+  cursor: default; outline: 0;
+}
